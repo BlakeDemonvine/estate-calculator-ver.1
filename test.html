@@ -786,6 +786,7 @@
         document.getElementById('title').addEventListener('change', function(e) {
             let newTitle = e.target.value.trim();
             if (!newTitle) newTitle = "未命名專案";
+            document.title = newTitle + " - 磚家計算";
             
             const projects = JSON.parse(localStorage.getItem('brick_projects') || '[]');
             
@@ -813,4 +814,5 @@
     <script src="script.js"></script>
     <script src="excel.js"></script>
 </body>
+
 </html>
