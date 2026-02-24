@@ -44,8 +44,9 @@ function show(input){
         }
     });
 
-    document.getElementById('title').value = basics['地段'] || '未命名專案';
-    document.title = '磚家計算' + document.getElementById('title').value;
+    const landSegment = basics['地段'] || '未命名專案';
+    document.getElementById('title').value = landSegment;
+    document.title = landSegment + " - 磚家計算";
 
     // 在 script.js 中修改 show 函數的 A 部分
     if(input === 'A'){
@@ -1179,3 +1180,4 @@ function parseBuildingBlock(block) {
     });
 
 }
+
