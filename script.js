@@ -45,6 +45,7 @@ function show(input){
     });
 
     document.getElementById('title').value = basics['地段'] || '未命名專案';
+    document.title = '磚家計算' + document.getElementById('title').value;
 
     // 在 script.js 中修改 show 函數的 A 部分
     if(input === 'A'){
@@ -1176,4 +1177,5 @@ function parseBuildingBlock(block) {
             data[landId]["權利範圍"][idx] = scope; // 覆蓋為建物的持分比例
         }
     });
+
 }
