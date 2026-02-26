@@ -475,7 +475,7 @@ function createChartBlock(id, title) {
                     <div id="val_${id}" style="font-size: 24px; font-weight: 800; color: #2c3e50;">0.0</div>
                 </div>
             </div>
-            <div style="margin-top: auto; padding-top: 20px; width: 100%; display: flex; justify-content: center; gap: 10px;">
+            <div style="-webkit-user-select: none; user-select: none; margin-top: auto; padding-top: 20px; width: 100%; display: flex; justify-content: center; gap: 10px;">
                 <button class="btn-edit" onclick="openEditModal('${rawId}')">
                     <i class="fa-solid fa-pen-to-square"></i> 編輯
                 </button>
