@@ -622,13 +622,78 @@
         .card-d-header {
             padding-right: 70px; /* 留空間給徽章 */
         }
+
+        /* =========================================
+           桌面寵物面板與大小控制樣式
+           ========================================= */
+        .side-panel {
+            position: fixed;
+            left: -320px; /* 預設隱藏在畫面左外側 */
+            top: 56px; /* Header 之下 */
+            width: 300px;
+            height: calc(100vh - 56px);
+            background: white;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 999;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #eee;
+        }
+        .side-panel.open {
+            left: 0; /* 展開時滑入 */
+        }
+        .side-panel .panel-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fcfcfc;
+        }
+        .side-panel .panel-header h3 {
+            margin: 0; font-size: 16px; color: var(--accent-purple);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .side-panel .panel-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .pet-btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .btn-spawn-pet {
+            background: #f0f7ff;
+            border: 1px solid #cce5ff;
+            color: #0056b3;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-spawn-pet:hover {
+            background: #cce5ff;
+            transform: translateY(-2px);
+        }
+        
+        /* 讓所有寵物吃到獨立的縮放比例，避免與 pet.js 裡的 transform 轉向衝突 */
+        .pet-container {
+            scale: var(--pet-scale, 1);
+            transform-origin: center bottom; /* 從底部中心縮放，讓寵物貼地 */
+        }
     </style>
 </head>
 <body>
 
     <header>
         <div class="header-left">
-            <button class="btn-icon"><i class="fa-solid fa-bars"></i></button>
+            <button class="btn-icon" onclick="togglePetPanel()"><i class="fa-solid fa-bars"></i></button>
             <a href="index.html" class="logo-area" style="text-decoration: none; color: inherit; cursor: pointer;">
                 <i class="fa-solid fa-shapes"></i> <span>磚家計算</span>
             </a>
@@ -646,7 +711,32 @@
             </button>
         </div>
     </header>
+    <div id="petPanel" class="side-panel">
+        <div class="panel-header">
+            <h3><i class="fa-solid fa-paw"></i> 桌面寵物設定</h3>
+            <button class="close-btn" onclick="togglePetPanel()">&times;</button>
+        </div>
+        <div class="panel-body">
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label style="font-weight: 600; color: var(--accent-purple);">
+                    寵物大小調整 (<span id="petSizeDisplay">1.0</span>x)
+                </label>
+                <input type="range" id="petSizeSlider" min="0.5" max="3" step="0.1" value="1" style="width: 100%; margin-top: 8px;">
+            </div>
+            
+            <div class="form-group">
+                <label style="font-weight: 600; color: var(--accent-purple);">召喚寵物 (點擊生成)</label>
+                <div id="petSpawnList" class="pet-btn-grid">
+                    </div>
+            </div>
 
+            <div style="margin-top: 30px; border-top: 1px dashed #eee; padding-top: 15px;">
+                <button class="btn-cancel" style="width: 100%; color: #d93025; border-color: #f5c6cb; background: #f8d7da;" onclick="clearPets()">
+                    <i class="fa-solid fa-broom"></i> 清除所有寵物
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="main-container">
         <nav class="sidebar-rail">
             <div id="A" class="nav-item active"><i class="fa-solid fa-cloud-arrow-up"></i><span>匯入謄本</span></div>
@@ -692,7 +782,7 @@
                     </div>
                     <div class="form-group">
                         <label>電話號碼</label>
-                        <input type="text" id="editOtherRights">
+                        <input type="text" id="phoneNumber">
                     </div>
                     
                     
@@ -737,12 +827,14 @@
             <span id="sumAssessedValue" class="summary-value highlight">$0</span>
         </div>
     </div>
+    <script src="pet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <!-- script src="data.js"></script -->
@@ -809,6 +901,63 @@
                 window.basics['地段'] = newTitle;
             }
             window.saveProjectToLocal();
+        });
+        // =========================================
+        // 桌面寵物面板控制邏輯
+        // =========================================
+        
+        // 開關側邊面板
+        function togglePetPanel() {
+            document.getElementById('petPanel').classList.toggle('open');
+        }
+
+        // 清除畫面上所有的寵物
+        function clearPets() {
+            document.querySelectorAll('.pet-container').forEach(pet => pet.remove());
+        }
+
+        // 當畫面載入完成後，初始化寵物選單與大小拉桿
+        window.addEventListener('DOMContentLoaded', () => {
+            // 定義要顯示的寵物清單 (已為您排除 'Rat 2')
+            const petList = ['Dog 1', 'Dog 2', 'Cat 1', 'Cat 2', 'Bird 1', 'Bird 2'];
+            const chineseName = {
+                'Dog 1' : '杜賓犬',
+                'Dog 2' : '柴犬', 
+                'Cat 1' : '橘貓', 
+                'Cat 2' : '賓士貓', 
+                'Bird 1' : '烏鴉', 
+                'Bird 2' : '鴿子'
+            }
+            const grid = document.getElementById('petSpawnList');
+            
+            if (grid) {
+                petList.forEach(petName => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-spawn-pet';
+                    btn.innerText = `+ 召喚 ${chineseName[petName]}`;
+                    btn.onclick = () => {
+                        // 呼叫 pet.js 裡面的函式來建立寵物
+                        if (typeof createActivePet === 'function') {
+                            createActivePet(petName);
+                        } else {
+                            alert('找不到寵物生成程式，請確認 pet.js 已正確載入！');
+                        }
+                    };
+                    grid.appendChild(btn);
+                });
+            }
+
+            // 監聽大小控制拉桿，利用 CSS 變數即時調整所有寵物尺寸
+            const sizeSlider = document.getElementById('petSizeSlider');
+            const sizeDisplay = document.getElementById('petSizeDisplay');
+            if (sizeSlider) {
+                sizeSlider.addEventListener('input', (e) => {
+                    const val = parseFloat(e.target.value).toFixed(1);
+                    sizeDisplay.innerText = val;
+                    // 更新全域 CSS 變數
+                    document.documentElement.style.setProperty('--pet-scale', val);
+                });
+            }
         });
     </script>
     <script src="script.js"></script>
