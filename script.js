@@ -13,6 +13,7 @@ let currentEditingId = null;
 let content = document.getElementById('canvas-area');
 
 // --- 2. 初始化 ---
+// --- 2. 初始化 ---
 document.addEventListener("DOMContentLoaded", function() {
     const targetIds = ['A', 'B', 'C', 'D', 'E', 'F'];
     const items = targetIds
@@ -27,7 +28,16 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     });
 
-    show('A'); // 預設顯示 A
+    // 【修改這裡】判斷專案內是否已經有資料，決定預設畫面
+    if (Object.keys(data).length > 0) {
+        // 有資料：切換左側導航狀態，並顯示「清冊 (B)」
+        document.getElementById('A').classList.remove('active');
+        document.getElementById('B').classList.add('active');
+        show('B'); 
+    } else {
+        // 沒資料：顯示「匯入謄本 (A)」
+        show('A'); 
+    }
 });
 
 // --- 3. 頁面切換邏輯 ---
@@ -156,6 +166,7 @@ function show(input){
         }
         updateGlobalSummary();
         document.getElementById('globalSummary').classList.remove('hidden-bar');
+        setTimeout(captureThumbnail, 1200);
     }
     else if(input === 'C'){
         // --- C 頁面: 增值稅歸戶表 (以「人」為單位) ---
@@ -841,7 +852,7 @@ function calculateRow(scopeInput) {
 
     card.querySelector('.input-held-area').value = heldArea.toFixed(2);
     card.querySelector('.input-held-ping').value = heldPing.toFixed(2);
-    // card.querySelector('.input-held-ratio').value = (heldRatio * 100).toFixed(2); // 暫時移除，因 Modal 內無法即時取得全域總和
+    card.querySelector('.input-held-ratio').value = (heldRatio * 100).toFixed(2); // 暫時移除，因 Modal 內無法即時取得全域總和
 }
 
 function calculateBuildingRow(input) {
@@ -1181,3 +1192,93 @@ function parseBuildingBlock(block) {
 
 }
 
+/*
+async function goHomeWithScreenshot(event) {
+    event.preventDefault();
+    
+    // 尋找要截圖的目標 (優先截圖清冊的 Grid，若無則截圖整個 Canvas 區)
+    const captureTarget = document.getElementById('gridB') || document.getElementById('canvas-area');
+    
+    // 確保有抓到目標，且目前是有存檔的專案
+    if (captureTarget && currentProjectIndex !== -1) {
+        try {
+            // 鼠標變成 loading 狀態，因為截圖需要大概 0.5 秒
+            document.body.style.cursor = 'wait';
+            
+            // 1. 使用 html2canvas 截圖
+            const canvas = await html2canvas(captureTarget, {
+                scale: 1, // 縮圖不需要高清
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ebecf0' // 確保背景色一致
+            });
+
+            // 2. 【極度重要】建立一個虛擬 Canvas 來大幅縮小圖片尺寸，避免 localStorage 爆掉
+            const thumbCanvas = document.createElement('canvas');
+            const ctx = thumbCanvas.getContext('2d');
+            // 設定縮圖大小 (300x200 對於首頁列表已經非常足夠)
+            thumbCanvas.width = 300;
+            thumbCanvas.height = 200;
+            ctx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, 300, 200);
+            
+            // 3. 轉成 JPG，品質設為 0.5 (高壓縮比)
+            const thumbBase64 = thumbCanvas.toDataURL('image/jpeg', 0.5);
+
+            // 4. 存入目前專案的 localStorage
+            const projects = JSON.parse(localStorage.getItem('brick_projects') || '[]');
+            if(projects[currentProjectIndex]) {
+                projects[currentProjectIndex].thumbnail = thumbBase64;
+                localStorage.setItem('brick_projects', JSON.stringify(projects));
+            }
+        } catch (err) {
+            console.error('截圖或壓縮失敗:', err);
+        }
+    }
+    
+    // 處理完畢，跳回首頁
+    document.body.style.cursor = 'default';
+    window.location.href = 'index.html';
+}
+*/
+
+// --- 背景無聲自動截圖 (解決變形與目標畫面問題) ---
+async function captureThumbnail() {
+    // 確定位於 B 分頁 (清冊)，且有專案被載入
+    const gridB = document.getElementById('gridB');
+    if (!gridB || currentProjectIndex === -1) return;
+
+    try {
+        // 1. 截圖 (不更動滑鼠游標，讓使用者無感)
+        const canvas = await html2canvas(gridB, {
+            scale: 1, // 原始比例
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ebecf0'
+        });
+
+        // 2. 等比例壓縮 (解決圖片變形、壓扁的問題)
+        const thumbCanvas = document.createElement('canvas');
+        const ctx = thumbCanvas.getContext('2d');
+        
+        // 設定固定寬度 400px，高度依比例自動計算
+        const targetWidth = 400;
+        const scale = targetWidth / canvas.width;
+        thumbCanvas.width = targetWidth;
+        thumbCanvas.height = canvas.height * scale;
+        
+        // 畫入壓縮後的畫布
+        ctx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+        
+        // 3. 轉成 JPG，品質設為 0.5
+        const thumbBase64 = thumbCanvas.toDataURL('image/jpeg', 0.5);
+
+        // 4. 默默存入 LocalStorage
+        const projects = JSON.parse(localStorage.getItem('brick_projects') || '[]');
+        if(projects[currentProjectIndex]) {
+            projects[currentProjectIndex].thumbnail = thumbBase64;
+            localStorage.setItem('brick_projects', JSON.stringify(projects));
+        }
+    } catch (err) {
+        console.error('背景截圖失敗:', err);
+    }
+}
